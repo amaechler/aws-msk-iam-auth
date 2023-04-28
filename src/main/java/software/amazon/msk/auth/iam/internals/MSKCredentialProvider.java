@@ -293,57 +293,25 @@ public class MSKCredentialProvider implements AWSCredentialsProvider, AutoClosea
                 String secretKey = (String) optionsMap.getOrDefault(AWS_ROLE_SECRET_ACCESS_KEY, null);
                 String sessionToken = (String) optionsMap.getOrDefault(AWS_ROLE_SESSION_TOKEN, null);
                 String externalId = (String) optionsMap.getOrDefault(AWS_ROLE_EXTERNAL_ID, null);
+
+                AWSCredentialsProvider credentials = null;
                 if (accessKey != null && secretKey != null) {
-                    AWSCredentialsProvider credentials = new AWSStaticCredentialsProvider(
+                    credentials = new AWSStaticCredentialsProvider(
                             sessionToken != null
                                     ? new BasicSessionCredentials(accessKey, secretKey, sessionToken)
                                     : new BasicAWSCredentials(accessKey, secretKey));
-
-                    return createSTSRoleCredentialProvider((String) p, sessionName, stsRegion, credentials);
-                }
-                else if (externalId != null) {
-                    return createSTSRoleCredentialProvider((String) p, externalId, sessionName, stsRegion);
                 }
 
-                return createSTSRoleCredentialProvider((String) p, sessionName, stsRegion);
+                final AWSSecurityTokenService stsClient = AWSSecurityTokenServiceClientBuilder.standard()
+                        .withCredentials(credentials)
+                        .withRegion(stsRegion)
+                        .build();
+
+                return new STSAssumeRoleSessionCredentialsProvider.Builder((String) p, sessionName)
+                        .withExternalId(externalId)
+                        .withStsClient(stsClient)
+                        .build();
             });
-        }
-
-        STSAssumeRoleSessionCredentialsProvider createSTSRoleCredentialProvider(String roleArn,
-                                                                                String sessionName, String stsRegion) {
-            AWSSecurityTokenService stsClient = AWSSecurityTokenServiceClientBuilder.standard()
-                    .withRegion(stsRegion)
-                    .build();
-            return new STSAssumeRoleSessionCredentialsProvider.Builder(roleArn, sessionName)
-                    .withStsClient(stsClient)
-                    .build();
-        }
-
-        STSAssumeRoleSessionCredentialsProvider createSTSRoleCredentialProvider(String roleArn,
-                                                                                String sessionName, String stsRegion,
-                                                                                AWSCredentialsProvider credentials) {
-            AWSSecurityTokenService stsClient = AWSSecurityTokenServiceClientBuilder.standard()
-                    .withRegion(stsRegion)
-                    .withCredentials(credentials)
-                    .build();
-
-            return new STSAssumeRoleSessionCredentialsProvider.Builder(roleArn, sessionName)
-                    .withStsClient(stsClient)
-                    .build();
-        }
-
-        STSAssumeRoleSessionCredentialsProvider createSTSRoleCredentialProvider(String roleArn,
-                                                                                String externalId,
-                                                                                String sessionName,
-                                                                                String stsRegion) {
-            AWSSecurityTokenService stsClient = AWSSecurityTokenServiceClientBuilder.standard()
-                    .withRegion(stsRegion)
-                    .build();
-
-            return new STSAssumeRoleSessionCredentialsProvider.Builder(roleArn, sessionName)
-                    .withStsClient(stsClient)
-                    .withExternalId(externalId)
-                    .build();
         }
     }
 
